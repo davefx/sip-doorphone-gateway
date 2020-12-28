@@ -1,0 +1,26 @@
+#!/usr/bin/expect -f
+
+set force_conservative 0  ;# set to 1 to force conservative mode even if
+			  ;# script wasn't run conservatively originally
+if {$force_conservative} {
+	set send_slow {1 .1}
+	proc send {ignore arg} {
+		sleep .1
+		exp_send -s -- $arg
+	}
+}
+
+
+set timeout -1
+spawn twinkle-console
+match_max 100000
+
+expect {
+	"registration failed: 503 Service Unavailable" { exit }
+	"Line 1: incoming call\r" { send -- "answer\r"; exp_continue }
+	"Line 1: call established.\r" { exec ./pick-up.sh >@stdout; exp_continue }
+	"Line 1: DTMF detected: #\r" { exec ./open-door.py >@stdout;  exp_continue }
+	"Line 1: far end ended call.\r" { exec ./hang-up.sh >@stdout ; exp_continue }
+	eof { exit }
+}
+
